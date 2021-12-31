@@ -29,7 +29,11 @@ namespace proximity_mine
         Console.WriteLine("Got current discord user!");
         Console.WriteLine(currentUser.Username);
         Console.WriteLine(currentUser.Id);
+
+        var voiceManager = discord.GetVoiceManager();
+        voiceManager.SetLocalVolume(currentUser.Id, 0);
       };
+
 
       // Pump the event look to ensure all callbacks continue to get fired.
       try

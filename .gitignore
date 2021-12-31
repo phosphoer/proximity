@@ -1,4 +1,7 @@
 obj/
-bin/
+bin/**/*.json
+bin/**/*.dll
+bin/**/*.exe
+bin/**/*.pdb
 
-!bin/Debug/netcoreapp3.1/discord_game_sdk.dll
+!discord_game_sdk.dll
