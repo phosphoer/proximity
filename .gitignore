@@ -1,0 +1,4 @@
+obj/
+bin/
+
+!bin/Debug/netcoreapp3.1/discord_game_sdk.dll
