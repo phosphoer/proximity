@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Text;
 
 namespace proximity_mine
 {
@@ -29,16 +30,11 @@ namespace proximity_mine
         Console.WriteLine("Got current discord user!");
         Console.WriteLine(currentUser.Username);
         Console.WriteLine(currentUser.Id);
-
-        var voiceManager = discord.GetVoiceManager();
-        voiceManager.SetSelfMute(true);
-
-        Console.WriteLine($"self mute: {voiceManager.IsSelfMute()}");
       };
 
 
+      var lobbyManager = discord.GetLobbyManager();
       var activityManager = discord.GetActivityManager();
-
       var activity = new Discord.Activity
       {
         State = "Testing",
@@ -79,35 +75,28 @@ namespace proximity_mine
       activityManager.OnActivityJoin += secret =>
       {
         Console.WriteLine($"{secret}");
+
+        lobbyManager.ConnectLobbyWithActivitySecret(secret, (Discord.Result result, ref Discord.Lobby lobby) =>
+        {
+          Console.WriteLine("Connected to lobby: {0}", lobby.Id);
+          lobbyManager.ConnectNetwork(lobby.Id);
+          lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
+          foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
+          {
+            lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0,
+                            Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
+          }
+        });
       };
 
-      var lobbyManager = discord.GetLobbyManager();
       lobbyManager.OnMemberConnect += (lobbyID, userID) =>
       {
         Console.WriteLine("user {0} connected to lobby: {1}", userID, lobbyID);
       };
 
-      var relationshipManager = discord.GetRelationshipManager();
-      // It is important to assign this handle right away to get the initial relationships refresh.
-      // This callback will only be fired when the whole list is initially loaded or was reset
-      relationshipManager.OnRefresh += () =>
+      lobbyManager.OnLobbyMessage += (lobbyID, userID, data) =>
       {
-        // Filter a user's relationship list to be just friends
-        relationshipManager.Filter((ref Discord.Relationship relationship) => { return relationship.Type == Discord.RelationshipType.Friend; });
-        // Loop over all friends a user has.
-        Console.WriteLine("relationships updated: {0}", relationshipManager.Count());
-        for (var i = 0; i < Math.Min(relationshipManager.Count(), 10); i++)
-        {
-          // Get an individual relationship from the list
-          var r = relationshipManager.GetAt((uint)i);
-          Console.WriteLine("relationships: {0} {1} {2} {3}", r.Type, r.User.Username, r.Presence.Status, r.Presence.Activity.Name);
-        }
-      };
-      // All following relationship updates are delivered individually.
-      // These are fired when a user gets a new friend, removes a friend, or a relationship's presence changes.
-      relationshipManager.OnRelationshipUpdate += (ref Discord.Relationship r) =>
-      {
-        Console.WriteLine("relationship updated: {0} {1} {2} {3}", r.Type, r.User.Username, r.Presence.Status, r.Presence.Activity.Name);
+        Console.WriteLine("lobby message: {0} {1}", lobbyID, Encoding.UTF8.GetString(data));
       };
 
       // Pump the event look to ensure all callbacks continue to get fired.
