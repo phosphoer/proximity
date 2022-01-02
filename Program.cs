@@ -81,6 +81,14 @@ namespace proximity_mine
       lobbyManager.CreateLobby(lobbyTxn, (Discord.Result result, ref Discord.Lobby lobby) =>
       {
         UpdateActivity(discord, lobby);
+
+        // Connect to the network of this lobby and send everyone a message
+        lobbyManager.ConnectNetwork(lobby.Id);
+        lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
+        lobbyManager.ConnectVoice(lobby.Id, result =>
+        {
+          Console.WriteLine($"Connect to voice: {result}");
+        });
       });
 
       // When we join an activity, try to connect to the relevant lobby
