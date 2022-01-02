@@ -30,47 +30,46 @@ namespace proximity_mine
         Console.WriteLine("Got current discord user!");
         Console.WriteLine(currentUser.Username);
         Console.WriteLine(currentUser.Id);
-      };
 
-
-      var lobbyManager = discord.GetLobbyManager();
-      var activityManager = discord.GetActivityManager();
-      var activity = new Discord.Activity
-      {
-        State = "Testing",
-        Details = "Testing discord activities!",
-        Timestamps =
+        var lobbyManager = discord.GetLobbyManager();
+        var activityManager = discord.GetActivityManager();
+        var activity = new Discord.Activity
+        {
+          State = "Testing",
+          Details = "Testing discord activities!",
+          Timestamps =
         {
             Start = 5,
         },
-        Party =
+          Party =
         {
-            Id = "foo partyID",
+            Id = currentUser.Id.ToString(),
             Size = {
                 CurrentSize = 1,
                 MaxSize = 4,
             },
         },
-        Secrets =
+          Secrets =
         {
             Match = Guid.NewGuid().ToString(),
             Join = Guid.NewGuid().ToString(),
             Spectate = Guid.NewGuid().ToString(),
         },
-        Instance = true,
-      };
+          Instance = true,
+        };
 
-      activityManager.UpdateActivity(activity, (result) =>
-      {
-        if (result == Discord.Result.Ok)
+        activityManager.UpdateActivity(activity, (result) =>
         {
-          Console.WriteLine($"Set activity success, join secret: {activity.Secrets.Join}");
-        }
-        else
-        {
-          Console.WriteLine("Activity Failed");
-        }
-      });
+          if (result == Discord.Result.Ok)
+          {
+            Console.WriteLine($"Set activity success, join secret: {activity.Secrets.Join}");
+          }
+          else
+          {
+            Console.WriteLine("Activity Failed");
+          }
+        });
+      };
 
       activityManager.OnActivityJoin += secret =>
       {
