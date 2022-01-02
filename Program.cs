@@ -53,9 +53,9 @@ namespace proximity_mine
         },
         Secrets =
         {
-            Match = new Guid().ToString(),
-            Join = new Guid().ToString(),
-            Spectate = new Guid().ToString(),
+            Match = Guid.NewGuid().ToString(),
+            Join = Guid.NewGuid().ToString(),
+            Spectate = Guid.NewGuid().ToString(),
         },
         Instance = true,
       };
