@@ -53,9 +53,9 @@ namespace proximity_mine
         },
         Secrets =
         {
-            Match = "",
+            Match = new Guid().ToString(),
             Join = new Guid().ToString(),
-            Spectate = "",
+            Spectate = new Guid().ToString(),
         },
         Instance = true,
       };
@@ -64,7 +64,7 @@ namespace proximity_mine
       {
         if (result == Discord.Result.Ok)
         {
-          Console.WriteLine("Activity Success!");
+          Console.WriteLine($"Set activity success, join secret: {activity.Secrets.Join}");
         }
         else
         {
