@@ -97,10 +97,21 @@ namespace proximity_mine
           // Connect to the network of this lobby and send everyone a message
           lobbyManager.ConnectNetwork(lobby.Id);
           lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
+          lobbyManager.ConnectVoice(lobby.Id, result =>
+          {
+            Console.WriteLine($"Connect to voice: {result}");
+          });
+
           foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
           {
+            Console.WriteLine($"Sending network message to {user.Id}");
             lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
           }
+
+          lobbyManager.SendLobbyMessage(lobby.Id, Encoding.UTF8.GetBytes($"Hello Lobby!"), result =>
+          {
+            Console.WriteLine($"Send lobby message result: {result}");
+          });
         });
       };
 
