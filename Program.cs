@@ -7,6 +7,7 @@ namespace proximity_mine
   class Program
   {
     private static readonly long kClientId = 926574841237209158;
+    private static bool _isConnecting = false;
 
     static void Main(string[] args)
     {
@@ -81,19 +82,23 @@ namespace proximity_mine
       {
         Console.WriteLine($"OnActivityJoin {secret}");
 
-        lobbyManager.ConnectLobbyWithActivitySecret(secret, (Discord.Result result, ref Discord.Lobby lobby) =>
+        if (!_isConnecting)
         {
-          Console.WriteLine("Connected to lobby: {0}", lobby.Id);
-
-          // Connect to the network of this lobby and send everyone a message
-          lobbyManager.ConnectNetwork(lobby.Id);
-          lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
-          foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
+          _isConnecting = true;
+          lobbyManager.ConnectLobbyWithActivitySecret(secret, (Discord.Result result, ref Discord.Lobby lobby) =>
           {
-            lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0,
-                            Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
-          }
-        });
+            Console.WriteLine("Connected to lobby: {0}", lobby.Id);
+
+            // Connect to the network of this lobby and send everyone a message
+            lobbyManager.ConnectNetwork(lobby.Id);
+            lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
+            foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
+            {
+              lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0,
+                              Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
+            }
+          });
+        }
       };
 
       lobbyManager.OnMemberConnect += (lobbyID, userID) =>
