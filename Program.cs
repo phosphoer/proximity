@@ -71,6 +71,9 @@ namespace proximity_mine
         Console.WriteLine("Got current discord user!");
         Console.WriteLine(currentUser.Username);
         Console.WriteLine(currentUser.Id);
+
+        var voiceManager = discord.GetVoiceManager();
+        voiceManager.SetSelfMute(false);
       };
 
       // Create a lobby for our game
