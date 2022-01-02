@@ -53,9 +53,9 @@ namespace proximity_mine
         },
         Secrets =
         {
-            Match = "foo matchSecret",
-            Join = "foo joinSecret",
-            Spectate = "foo spectateSecret",
+            Match = "",
+            Join = new Guid().ToString(),
+            Spectate = "",
         },
         Instance = true,
       };
@@ -74,7 +74,7 @@ namespace proximity_mine
 
       activityManager.OnActivityJoin += secret =>
       {
-        Console.WriteLine($"{secret}");
+        Console.WriteLine($"OnActivityJoin {secret}");
 
         lobbyManager.ConnectLobbyWithActivitySecret(secret, (Discord.Result result, ref Discord.Lobby lobby) =>
         {
