@@ -19,6 +19,8 @@ namespace proximity_mine
 
       // Get user manager and prepare to receive current user info 
       var userManager = discord.GetUserManager();
+      var activityManager = discord.GetActivityManager();
+      var lobbyManager = discord.GetLobbyManager();
 
       // The auth manager fires events as information about the current user changes.
       // This event will fire once on init.
@@ -31,7 +33,6 @@ namespace proximity_mine
         Console.WriteLine(currentUser.Username);
         Console.WriteLine(currentUser.Id);
 
-        var lobbyManager = discord.GetLobbyManager();
         var activityManager = discord.GetActivityManager();
         var activity = new Discord.Activity
         {
