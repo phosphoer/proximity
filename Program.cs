@@ -106,7 +106,7 @@ namespace proximity_mine
 
         lobbyManager.ConnectLobbyWithActivitySecret(secret, (Discord.Result result, ref Discord.Lobby lobby) =>
         {
-          Console.WriteLine("Connected to lobby: {0}", lobby.Id);
+          Console.WriteLine($"Connected to lobby: {lobby.Id}");
 
           UpdateActivity(discord, lobby);
 
@@ -140,17 +140,17 @@ namespace proximity_mine
 
       lobbyManager.OnMemberConnect += (lobbyID, userID) =>
       {
-        Console.WriteLine("user {0} connected to lobby: {1}", userID, lobbyID);
+        Console.WriteLine($"user {userID} connected to lobby: {lobbyID}");
       };
 
       lobbyManager.OnLobbyMessage += (lobbyID, userID, data) =>
       {
-        Console.WriteLine("lobby message: {0} {1}", lobbyID, Encoding.UTF8.GetString(data));
+        Console.WriteLine($"lobby message: {userID} {Encoding.UTF8.GetString(data)}");
       };
 
       lobbyManager.OnNetworkMessage += (lobbyID, userID, channelID, data) =>
       {
-        Console.WriteLine("channel message: {0} {1} {2}", lobbyID, channelID, Encoding.UTF8.GetString(data));
+        Console.WriteLine($"channel message: {lobbyID} {channelID} {Encoding.UTF8.GetString(data)}");
       };
 
       // Pump the event look to ensure all callbacks continue to get fired.
