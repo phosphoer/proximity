@@ -1,12 +1,15 @@
 using System;
 using System.Threading;
 using System.Text;
+using System.Diagnostics;
 
 namespace proximity_mine
 {
   class Program
   {
     private static readonly long kClientId = 926574841237209158;
+    private static bool _userInitialized = false;
+    private static long _otherUserId = 0;
 
     private static void UpdateActivity(Discord.Discord discord, Discord.Lobby lobby)
     {
@@ -63,16 +66,18 @@ namespace proximity_mine
       var userManager = discord.GetUserManager();
       var activityManager = discord.GetActivityManager();
       var lobbyManager = discord.GetLobbyManager();
+      var voiceManager = discord.GetVoiceManager();
 
       // Handle current user changing, can't get current user until this fires once
       userManager.OnCurrentUserUpdate += () =>
       {
+        _userInitialized = true;
+
         var currentUser = userManager.GetCurrentUser();
         Console.WriteLine("Got current discord user!");
         Console.WriteLine(currentUser.Username);
         Console.WriteLine(currentUser.Id);
 
-        var voiceManager = discord.GetVoiceManager();
         voiceManager.SetSelfMute(false);
       };
 
@@ -113,10 +118,17 @@ namespace proximity_mine
             Console.WriteLine($"Connect to voice: {result}");
           });
 
+          var localUser = userManager.GetCurrentUser();
           foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
           {
             Console.WriteLine($"Sending network message to {user.Id}");
             lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
+
+            if (user.Id != localUser.Id)
+            {
+              _otherUserId = user.Id;
+              Console.WriteLine($"Storing other user id {_otherUserId}");
+            }
           }
 
           lobbyManager.SendLobbyMessage(lobby.Id, Encoding.UTF8.GetBytes($"Hello Lobby!"), result =>
@@ -144,8 +156,24 @@ namespace proximity_mine
       // Pump the event look to ensure all callbacks continue to get fired.
       try
       {
+        Stopwatch timer = new Stopwatch();
+        timer.Start();
+
+        float volumeTimer = 0;
+
         while (true)
         {
+          float dt = timer.ElapsedTicks / (float)TimeSpan.TicksPerSecond;
+          timer.Restart();
+
+          if (_otherUserId > 0)
+          {
+            volumeTimer += dt;
+            float sinNormalized = (float)(Math.Sin(volumeTimer) * 0.5 + 0.5);
+            float volume = sinNormalized * 200;
+            voiceManager.SetLocalVolume(_otherUserId, (byte)volume);
+          }
+
           discord.RunCallbacks();
           Thread.Sleep(1000 / 60);
         }
