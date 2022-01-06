@@ -125,13 +125,13 @@ namespace ProximityMine
       _currentLobbyId = lobby.Id;
       _currentLobbyOwnerId = lobby.OwnerId;
 
-      LogInfo?.Invoke($"Updating activity for lobby {_currentLobbyId}");
-      LogInfo?.Invoke($"Lobby owner Id is {_currentLobbyOwnerId}");
+      LogStringInfo($"Updating activity for lobby {_currentLobbyId}");
+      LogStringInfo($"Lobby owner Id is {_currentLobbyOwnerId}");
 
       var user = _discord.GetUserManager().GetCurrentUser();
       if (user.Id != _currentUserId)
       {
-        LogInfo?.Invoke($"Changing local user ID to {user.Id}");
+        LogStringInfo($"Changing local user ID to {user.Id}");
         UserDisconnected?.Invoke(_currentUserId);
         _currentUserId = user.Id;
         UserConnected?.Invoke(_currentUserId);
