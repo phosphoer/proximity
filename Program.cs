@@ -49,10 +49,11 @@ namespace proximity_mine
 
         while (true)
         {
-          float dt = timer.ElapsedTicks / (float)TimeSpan.TicksPerSecond;
+          float dt = (float)TimeSpan.FromMilliseconds(timer.ElapsedMilliseconds).TotalSeconds;
           timer.Restart();
 
           elapsedTime += dt;
+          Console.WriteLine($"dt = {dt}");
 
           if (_proximityChat.OwnerId != 0)
           {
