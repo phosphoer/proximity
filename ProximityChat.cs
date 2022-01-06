@@ -125,6 +125,9 @@ namespace ProximityMine
       _currentLobbyId = lobby.Id;
       _currentLobbyOwnerId = lobby.OwnerId;
 
+      LogInfo?.Invoke($"Updating activity for lobby {_currentLobbyId}");
+      LogInfo?.Invoke($"Lobby owner Id is {_currentLobbyOwnerId}");
+
       var user = _discord.GetUserManager().GetCurrentUser();
       if (user.Id != _currentUserId)
       {
