@@ -125,6 +125,14 @@ namespace ProximityMine
       _currentLobbyId = lobby.Id;
       _currentLobbyOwnerId = lobby.OwnerId;
 
+      var user = _discord.GetUserManager().GetCurrentUser();
+      if (user.Id != _currentUserId)
+      {
+        UserDisconnected?.Invoke(_currentUserId);
+        _currentUserId = user.Id;
+        UserConnected?.Invoke(_currentUserId);
+      }
+
       // Get the special activity secret
       var secret = _discord.GetLobbyManager().GetLobbyActivitySecret(lobby.Id);
 
