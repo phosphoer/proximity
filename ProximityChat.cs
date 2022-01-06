@@ -62,6 +62,7 @@ namespace ProximityMine
       userManager.OnCurrentUserUpdate += OnCurrentUserUpdate;
       activityManager.OnActivityJoin += OnActivityJoin;
       lobbyManager.OnMemberConnect += OnMemberConnect;
+      lobbyManager.OnMemberDisconnect += OnMemberDisconnect;
       lobbyManager.OnLobbyMessage += OnLobbyMessage;
       lobbyManager.OnNetworkMessage += OnNetworkMessage;
 

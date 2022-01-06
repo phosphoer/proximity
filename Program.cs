@@ -53,16 +53,21 @@ namespace proximity_mine
           timer.Restart();
 
           elapsedTime += dt;
-          Console.WriteLine($"dt = {dt}");
 
-          if (_proximityChat.OwnerId != 0)
+          if (_players.Count > 0)
           {
             Player ownerPlayer = GetPlayer(_proximityChat.OwnerId);
-            ownerPlayer.X = MathF.Sin(elapsedTime) * 10;
+            if (ownerPlayer != null)
+            {
+              ownerPlayer.X = MathF.Sin(elapsedTime) * 10;
+              _proximityChat.SetPlayerPosition(ownerPlayer.Id, ownerPlayer.X, ownerPlayer.Y, 0);
 
-            _proximityChat.SetPlayerPosition(ownerPlayer.Id, ownerPlayer.X, ownerPlayer.Y, 0);
-
-            Console.WriteLine($"Owner player pos.x = {ownerPlayer.X}");
+              Console.WriteLine($"Owner player pos.x = {ownerPlayer.X}");
+            }
+            else
+            {
+              Console.WriteLine($"Failed to find owner player with id {_proximityChat.OwnerId}");
+            }
           }
 
           _proximityChat.Update();
