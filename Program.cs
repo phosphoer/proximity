@@ -52,13 +52,12 @@ namespace proximity_mine
           float dt = (float)TimeSpan.FromMilliseconds(timer.ElapsedMilliseconds).TotalSeconds;
           timer.Restart();
 
-          elapsedTime += dt;
-
           if (_players.Count > 1)
           {
             Player ownerPlayer = GetPlayer(_proximityChat.OwnerId);
             if (ownerPlayer != null)
             {
+              elapsedTime += dt;
               ownerPlayer.X = MathF.Sin(elapsedTime) * 10;
               _proximityChat.SetPlayerPosition(ownerPlayer.Id, ownerPlayer.X, ownerPlayer.Y, 0);
 

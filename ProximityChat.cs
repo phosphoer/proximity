@@ -18,7 +18,6 @@ namespace ProximityMine
 
     private bool _userInitialized = false;
     private long _currentUserId = 0;
-    private long _otherUserId = 0;
     private long _currentLobbyId = 0;
     private long _currentLobbyOwnerId = 0;
     private bool _isJoiningLobby = false;
@@ -128,15 +127,6 @@ namespace ProximityMine
 
       LogStringInfo($"Updating activity for lobby {_currentLobbyId}");
       LogStringInfo($"Lobby owner Id is {_currentLobbyOwnerId}");
-
-      var user = _discord.GetUserManager().GetCurrentUser();
-      if (user.Id != _currentUserId)
-      {
-        LogStringInfo($"Changing local user ID to {user.Id}");
-        UserDisconnected?.Invoke(_currentUserId);
-        _currentUserId = user.Id;
-        UserConnected?.Invoke(_currentUserId);
-      }
 
       // Get the special activity secret
       var secret = _discord.GetLobbyManager().GetLobbyActivitySecret(lobby.Id);
@@ -249,15 +239,12 @@ namespace ProximityMine
         var localUser = userManager.GetCurrentUser();
         foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
         {
-          LogStringInfo($"Sending network message to {user.Id}");
-          lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
-
-          UserConnected?.Invoke(user.Id);
-
           if (user.Id != localUser.Id)
           {
-            _otherUserId = user.Id;
-            LogStringInfo($"Storing other user id {_otherUserId}");
+            LogStringInfo($"Sending network message to {user.Id}");
+            lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
+
+            UserConnected?.Invoke(user.Id);
           }
         }
 
