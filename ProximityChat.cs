@@ -251,6 +251,8 @@ namespace ProximityMine
           LogStringInfo($"Sending network message to {user.Id}");
           lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
 
+          UserConnected?.Invoke(user.Id);
+
           if (user.Id != localUser.Id)
           {
             _otherUserId = user.Id;
