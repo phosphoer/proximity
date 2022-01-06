@@ -8,6 +8,9 @@ namespace ProximityMine
   {
     public static event System.Action<string> LogInfo;
 
+    public event System.Action<long> UserConnected;
+    public event System.Action<long> UserDisconnected;
+
     private static readonly long kClientId = 926574841237209158;
 
     private bool _userInitialized = false;
@@ -190,6 +193,13 @@ namespace ProximityMine
     private void OnMemberConnect(long lobbyID, long userID)
     {
       LogStringInfo($"user {userID} connected to lobby: {lobbyID}");
+      UserConnected?.Invoke(userID);
+    }
+
+    private void OnMemberDisconnect(long lobbyID, long userID)
+    {
+      LogStringInfo($"user {userID} disconnected to lobby: {lobbyID}");
+      UserDisconnected?.Invoke(userID);
     }
 
     private void OnLobbyMessage(long lobbyID, long userID, byte[] data)
