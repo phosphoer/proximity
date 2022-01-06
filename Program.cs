@@ -54,7 +54,7 @@ namespace proximity_mine
 
           elapsedTime += dt;
 
-          if (_players.Count > 0)
+          if (_players.Count > 1)
           {
             Player ownerPlayer = GetPlayer(_proximityChat.OwnerId);
             if (ownerPlayer != null)
