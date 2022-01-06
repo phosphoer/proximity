@@ -128,6 +128,7 @@ namespace ProximityMine
       var user = _discord.GetUserManager().GetCurrentUser();
       if (user.Id != _currentUserId)
       {
+        LogInfo?.Invoke($"Changing local user ID to {user.Id}");
         UserDisconnected?.Invoke(_currentUserId);
         _currentUserId = user.Id;
         UserConnected?.Invoke(_currentUserId);
