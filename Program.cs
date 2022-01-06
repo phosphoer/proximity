@@ -45,10 +45,24 @@ namespace proximity_mine
         Stopwatch timer = new Stopwatch();
         timer.Start();
 
+        float elapsedTime = 0;
+
         while (true)
         {
           float dt = timer.ElapsedTicks / (float)TimeSpan.TicksPerSecond;
           timer.Restart();
+
+          elapsedTime += dt;
+
+          if (_proximityChat.OwnerId > 0)
+          {
+            Player ownerPlayer = GetPlayer(_proximityChat.OwnerId);
+            ownerPlayer.X = MathF.Sin(elapsedTime) * 10;
+
+            _proximityChat.SetPlayerPosition(ownerPlayer.Id, ownerPlayer.X, ownerPlayer.Y, 0);
+
+            Console.WriteLine($"Owner player pos.x = {ownerPlayer.X}");
+          }
 
           _proximityChat.Update();
           Thread.Sleep(1000 / 60);
@@ -67,7 +81,7 @@ namespace proximity_mine
 
       _players.Add(player);
 
-      Console.Write($"Player connected: {userId}");
+      Console.WriteLine($"Player connected: {userId}");
     }
 
     private void OnUserDisconnected(long userId)
@@ -78,7 +92,7 @@ namespace proximity_mine
         _players.Remove(player);
       }
 
-      Console.Write($"Player disconnected: {userId}");
+      Console.WriteLine($"Player disconnected: {userId}");
     }
 
     private Player GetPlayer(long playerId)

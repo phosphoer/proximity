@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace ProximityMine
 {
@@ -11,15 +12,34 @@ namespace ProximityMine
     public event System.Action<long> UserConnected;
     public event System.Action<long> UserDisconnected;
 
+    public long OwnerId => _currentLobbyOwnerId;
+
     private static readonly long kClientId = 926574841237209158;
 
     private bool _userInitialized = false;
+    private long _currentUserId = 0;
     private long _otherUserId = 0;
     private long _currentLobbyId = 0;
+    private long _currentLobbyOwnerId = 0;
     private uint _lobbyCapacity = 4;
     private Discord.Discord _discord;
     private Stopwatch _frameTimer = new Stopwatch();
     private System.Timers.Timer _timer = new System.Timers.Timer();
+    private List<Player> _players = new List<Player>();
+
+
+    private class Player
+    {
+      public float X = 0;
+      public float Y = 0;
+      public float Z = 0;
+      public long Id = 0;
+
+      public Player(long id)
+      {
+        Id = id;
+      }
+    }
 
     public void Initialize()
     {
@@ -50,6 +70,25 @@ namespace ProximityMine
       // float dt = _frameTimer.ElapsedTicks / (float)TimeSpan.TicksPerSecond;
       // _frameTimer.Restart();
 
+      Player localPlayer = GetPlayer(OwnerId);
+      if (localPlayer != null)
+      {
+        var voiceManager = _discord.GetVoiceManager();
+
+        // Local player is always player 0
+        for (int i = 1; i < _players.Count; ++i)
+        {
+          Player remotePlayer = _players[i];
+          float xDelta = (remotePlayer.X - localPlayer.X);
+          float yDelta = (remotePlayer.Y - localPlayer.Y);
+          float zDelta = (remotePlayer.Z - localPlayer.Z);
+          float distToPlayer = MathF.Sqrt(xDelta * xDelta + yDelta * yDelta + zDelta * zDelta);
+          float volume = 1.0f - (distToPlayer / 10.0f);
+
+          voiceManager.SetLocalVolume(remotePlayer.Id, (byte)(volume * 200));
+        }
+      }
+
       // Pump the event look to ensure all callbacks continue to get fired.
       _discord.RunCallbacks();
     }
@@ -64,6 +103,14 @@ namespace ProximityMine
       }
     }
 
+    public void SetPlayerPosition(long playerId, float x, float y, float z)
+    {
+      var player = GetPlayer(playerId);
+      player.X = x;
+      player.Y = y;
+      player.Z = z;
+    }
+
     public void Dispose()
     {
       _discord.Dispose();
@@ -72,6 +119,7 @@ namespace ProximityMine
     private void UpdateActivity(Discord.Lobby lobby)
     {
       _currentLobbyId = lobby.Id;
+      _currentLobbyOwnerId = lobby.OwnerId;
 
       // Get the special activity secret
       var secret = _discord.GetLobbyManager().GetLobbyActivitySecret(lobby.Id);
@@ -120,6 +168,9 @@ namespace ProximityMine
     // Handle current user changing, can't get current user until this fires once
     private void OnCurrentUserUpdate()
     {
+      if (_currentUserId != 0)
+        UserDisconnected?.Invoke(_currentUserId);
+
       _userInitialized = true;
 
       var currentUser = _discord.GetUserManager().GetCurrentUser();
@@ -127,7 +178,10 @@ namespace ProximityMine
       LogStringInfo(currentUser.Username);
       LogStringInfo(currentUser.Id.ToString());
 
+      _currentUserId = currentUser.Id;
       _discord.GetVoiceManager().SetSelfMute(false);
+
+      UserConnected?.Invoke(_currentUserId);
 
       // Create a lobby for our local game
       var lobbyManager = _discord.GetLobbyManager();
@@ -210,6 +264,32 @@ namespace ProximityMine
     private void OnNetworkMessage(long lobbyID, long userID, byte channelID, byte[] data)
     {
       LogStringInfo($"channel message: {lobbyID} {channelID} {Encoding.UTF8.GetString(data)}");
+    }
+
+    private void OnUserConnect(long userId)
+    {
+      Player player = new Player(userId);
+      _players.Add(player);
+    }
+
+    private void OnUserDisconnect(long userId)
+    {
+      Player player = GetPlayer(userId);
+      if (player != null)
+      {
+        _players.Remove(player);
+      }
+    }
+
+    private Player GetPlayer(long playerId)
+    {
+      for (int i = 0; i < _players.Count; ++i)
+      {
+        if (_players[i].Id == playerId)
+          return _players[i];
+      }
+
+      return null;
     }
   }
 }
