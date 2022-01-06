@@ -21,6 +21,7 @@ namespace ProximityMine
     private long _otherUserId = 0;
     private long _currentLobbyId = 0;
     private long _currentLobbyOwnerId = 0;
+    private bool _isJoiningLobby = false;
     private uint _lobbyCapacity = 4;
     private Discord.Discord _discord;
     private Stopwatch _frameTimer = new Stopwatch();
@@ -208,12 +209,17 @@ namespace ProximityMine
 
     private void OnActivityJoin(string secret)
     {
+      if (_isJoiningLobby)
+        return;
+
       LogStringInfo($"OnActivityJoin {secret}");
 
       // When we join an activity, try to connect to the relevant lobby
+      _isJoiningLobby = true;
       var lobbyManager = _discord.GetLobbyManager();
       lobbyManager.ConnectLobbyWithActivitySecret(secret, (Discord.Result result, ref Discord.Lobby lobby) =>
       {
+        _isJoiningLobby = false;
         LogStringInfo($"Connected to lobby: {lobby.Id}");
 
         UpdateActivity(lobby);
