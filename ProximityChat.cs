@@ -12,14 +12,66 @@ namespace ProximityMine
 
     private bool _userInitialized = false;
     private long _otherUserId = 0;
+    private long _currentLobbyId = 0;
+    private uint _lobbyCapacity = 4;
     private Discord.Discord _discord;
     private Stopwatch _frameTimer = new Stopwatch();
     private System.Timers.Timer _timer = new System.Timers.Timer();
 
-    private void UpdateActivity(Discord.Discord discord, Discord.Lobby lobby)
+    public void Initialize()
     {
+      LogStringInfo("ProximityChat Initializing...");
+
+      // Create discord api instance and set up logging
+      _discord = new Discord.Discord(kClientId, (UInt64)Discord.CreateFlags.Default);
+      _discord.SetLogHook(Discord.LogLevel.Info, (level, message) =>
+      {
+        LogStringInfo($"Discord: [{level}] {message}");
+      });
+
+      // Get managers we need
+      var userManager = _discord.GetUserManager();
+      var activityManager = _discord.GetActivityManager();
+      var lobbyManager = _discord.GetLobbyManager();
+      var voiceManager = _discord.GetVoiceManager();
+
+      userManager.OnCurrentUserUpdate += OnCurrentUserUpdate;
+      activityManager.OnActivityJoin += OnActivityJoin;
+      lobbyManager.OnMemberConnect += OnMemberConnect;
+      lobbyManager.OnLobbyMessage += OnLobbyMessage;
+      lobbyManager.OnNetworkMessage += OnNetworkMessage;
+    }
+
+    public void Update()
+    {
+      // float dt = _frameTimer.ElapsedTicks / (float)TimeSpan.TicksPerSecond;
+      // _frameTimer.Restart();
+
+      // Pump the event look to ensure all callbacks continue to get fired.
+      _discord.RunCallbacks();
+    }
+
+    public void SetLobbyCapacity(uint capacity)
+    {
+      _lobbyCapacity = capacity;
+      if (_currentLobbyId != 0)
+      {
+        var updateTxn = _discord.GetLobbyManager().GetLobbyUpdateTransaction(_currentLobbyId);
+        updateTxn.SetCapacity(_lobbyCapacity);
+      }
+    }
+
+    public void Dispose()
+    {
+      _discord.Dispose();
+    }
+
+    private void UpdateActivity(Discord.Lobby lobby)
+    {
+      _currentLobbyId = lobby.Id;
+
       // Get the special activity secret
-      var secret = discord.GetLobbyManager().GetLobbyActivitySecret(lobby.Id);
+      var secret = _discord.GetLobbyManager().GetLobbyActivitySecret(lobby.Id);
 
       // Create a new activity
       // Set the party id to the lobby id, so everyone in the lobby has the same value
@@ -31,7 +83,7 @@ namespace ProximityMine
           Id = lobby.Id.ToString(),
           Size =
           {
-            CurrentSize = discord.GetLobbyManager().MemberCount(lobby.Id),
+            CurrentSize = _discord.GetLobbyManager().MemberCount(lobby.Id),
             MaxSize = (int)lobby.Capacity
           }
         },
@@ -62,121 +114,92 @@ namespace ProximityMine
       LogInfo?.Invoke(logStr);
     }
 
-    public void Initialize()
+    // Handle current user changing, can't get current user until this fires once
+    private void OnCurrentUserUpdate()
     {
-      LogStringInfo("ProximityChat Initializing...");
+      _userInitialized = true;
 
-      // Create discord api instance and set up logging
-      _discord = new Discord.Discord(kClientId, (UInt64)Discord.CreateFlags.Default);
-      _discord.SetLogHook(Discord.LogLevel.Debug, (level, message) =>
-      {
-        LogStringInfo($"Log[{level}] {message}");
-      });
+      var currentUser = _discord.GetUserManager().GetCurrentUser();
+      LogStringInfo("Got current discord user!");
+      LogStringInfo(currentUser.Username);
+      LogStringInfo(currentUser.Id.ToString());
 
-      // Get managers we need
-      var userManager = _discord.GetUserManager();
-      var activityManager = _discord.GetActivityManager();
+      _discord.GetVoiceManager().SetSelfMute(false);
+
+      // Create a lobby for our local game
       var lobbyManager = _discord.GetLobbyManager();
-      var voiceManager = _discord.GetVoiceManager();
+      var lobbyTxn = lobbyManager.GetLobbyCreateTransaction();
+      lobbyTxn.SetCapacity(_lobbyCapacity);
+      lobbyTxn.SetType(Discord.LobbyType.Private);
 
-      // Handle current user changing, can't get current user until this fires once
-      _discord.GetUserManager().OnCurrentUserUpdate += () =>
+      lobbyManager.CreateLobby(lobbyTxn, (Discord.Result result, ref Discord.Lobby lobby) =>
       {
-        _userInitialized = true;
+        UpdateActivity(lobby);
 
-        var currentUser = _discord.GetUserManager().GetCurrentUser();
-        LogStringInfo("Got current discord user!");
-        LogStringInfo(currentUser.Username);
-        LogStringInfo(currentUser.Id.ToString());
-
-        _discord.GetVoiceManager().SetSelfMute(false);
-
-        // Create a lobby for our game
-        var lobbyTxn = lobbyManager.GetLobbyCreateTransaction();
-        lobbyTxn.SetCapacity(4);
-        lobbyTxn.SetType(Discord.LobbyType.Private);
-
-        lobbyManager.CreateLobby(lobbyTxn, (Discord.Result result, ref Discord.Lobby lobby) =>
+        // Connect to the network of this lobby and send everyone a message
+        lobbyManager.ConnectNetwork(lobby.Id);
+        lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
+        lobbyManager.ConnectVoice(lobby.Id, voiceResult =>
         {
-          UpdateActivity(_discord, lobby);
-
-          // Connect to the network of this lobby and send everyone a message
-          lobbyManager.ConnectNetwork(lobby.Id);
-          lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
-          lobbyManager.ConnectVoice(lobby.Id, voiceResult =>
-          {
-            LogStringInfo($"Connect to voice: {voiceResult}");
-          });
+          LogStringInfo($"Connect to voice: {voiceResult}");
         });
-      };
+      });
+    }
+
+    private void OnActivityJoin(string secret)
+    {
+      LogStringInfo($"OnActivityJoin {secret}");
 
       // When we join an activity, try to connect to the relevant lobby
-      activityManager.OnActivityJoin += secret =>
+      var lobbyManager = _discord.GetLobbyManager();
+      lobbyManager.ConnectLobbyWithActivitySecret(secret, (Discord.Result result, ref Discord.Lobby lobby) =>
       {
-        LogStringInfo($"OnActivityJoin {secret}");
+        LogStringInfo($"Connected to lobby: {lobby.Id}");
 
-        lobbyManager.ConnectLobbyWithActivitySecret(secret, (Discord.Result result, ref Discord.Lobby lobby) =>
+        UpdateActivity(lobby);
+
+        // Connect to the network of this lobby and send everyone a message
+        lobbyManager.ConnectNetwork(lobby.Id);
+        lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
+        lobbyManager.ConnectVoice(lobby.Id, voiceResult =>
         {
-          LogStringInfo($"Connected to lobby: {lobby.Id}");
-
-          UpdateActivity(_discord, lobby);
-
-          // Connect to the network of this lobby and send everyone a message
-          lobbyManager.ConnectNetwork(lobby.Id);
-          lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
-          lobbyManager.ConnectVoice(lobby.Id, voiceResult =>
-          {
-            LogStringInfo($"Connect to voice: {voiceResult}");
-          });
-
-          var localUser = userManager.GetCurrentUser();
-          foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
-          {
-            LogStringInfo($"Sending network message to {user.Id}");
-            lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
-
-            if (user.Id != localUser.Id)
-            {
-              _otherUserId = user.Id;
-              LogStringInfo($"Storing other user id {_otherUserId}");
-            }
-          }
-
-          lobbyManager.SendLobbyMessage(lobby.Id, Encoding.UTF8.GetBytes($"Hello Lobby!"), lobbyResult =>
-          {
-            LogStringInfo($"Send lobby message result: {lobbyResult}");
-          });
+          LogStringInfo($"Connect to voice: {voiceResult}");
         });
-      };
 
-      lobbyManager.OnMemberConnect += (lobbyID, userID) =>
-      {
-        LogStringInfo($"user {userID} connected to lobby: {lobbyID}");
-      };
+        var userManager = _discord.GetUserManager();
+        var localUser = userManager.GetCurrentUser();
+        foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
+        {
+          LogStringInfo($"Sending network message to {user.Id}");
+          lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
 
-      lobbyManager.OnLobbyMessage += (lobbyID, userID, data) =>
-      {
-        LogStringInfo($"lobby message: {userID} {Encoding.UTF8.GetString(data)}");
-      };
+          if (user.Id != localUser.Id)
+          {
+            _otherUserId = user.Id;
+            LogStringInfo($"Storing other user id {_otherUserId}");
+          }
+        }
 
-      lobbyManager.OnNetworkMessage += (lobbyID, userID, channelID, data) =>
-      {
-        LogStringInfo($"channel message: {lobbyID} {channelID} {Encoding.UTF8.GetString(data)}");
-      };
+        lobbyManager.SendLobbyMessage(lobby.Id, Encoding.UTF8.GetBytes($"Hello Lobby!"), lobbyResult =>
+        {
+          LogStringInfo($"Send lobby message result: {lobbyResult}");
+        });
+      });
     }
 
-    public void Update()
+    private void OnMemberConnect(long lobbyID, long userID)
     {
-      // Pump the event look to ensure all callbacks continue to get fired.
-      // float dt = _frameTimer.ElapsedTicks / (float)TimeSpan.TicksPerSecond;
-      // _frameTimer.Restart();
-
-      _discord.RunCallbacks();
+      LogStringInfo($"user {userID} connected to lobby: {lobbyID}");
     }
 
-    public void Dispose()
+    private void OnLobbyMessage(long lobbyID, long userID, byte[] data)
     {
-      _discord.Dispose();
+      LogStringInfo($"lobby message: {userID} {Encoding.UTF8.GetString(data)}");
+    }
+
+    private void OnNetworkMessage(long lobbyID, long userID, byte channelID, byte[] data)
+    {
+      LogStringInfo($"channel message: {lobbyID} {channelID} {Encoding.UTF8.GetString(data)}");
     }
   }
 }
