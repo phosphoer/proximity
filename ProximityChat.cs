@@ -80,7 +80,7 @@ namespace ProximityMine
           float xDelta = (remotePlayer.X - localPlayer.X);
           float yDelta = (remotePlayer.Y - localPlayer.Y);
           float zDelta = (remotePlayer.Z - localPlayer.Z);
-          float distToPlayer = MathF.Sqrt(xDelta * xDelta + yDelta * yDelta + zDelta * zDelta);
+          float distToPlayer = (float)Math.Sqrt(xDelta * xDelta + yDelta * yDelta + zDelta * zDelta);
           float volume = 1.0f - (distToPlayer / 10.0f);
 
           voiceManager.SetLocalVolume(remotePlayer.DiscordId, (byte)(volume * 200));
@@ -107,6 +107,7 @@ namespace ProximityMine
 
       if (_playerGameId != playerGameId)
       {
+        GetPlayer(_currentUserId).GameId = playerGameId;
         _playerGameId = playerGameId;
         if (_currentLobbyId != 0)
         {
