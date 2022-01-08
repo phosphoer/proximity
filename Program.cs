@@ -67,7 +67,7 @@ namespace proximity_mine
             }
             else
             {
-              Console.WriteLine($"Failed to find owner player with id {_proximityChat.LobbyOwnerId}");
+              Console.WriteLine($"Failed to find owner player with id {_proximityChat.LobbyOwnerId} and game id {ownerPlayerId}");
             }
           }
 

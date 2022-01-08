@@ -64,9 +64,6 @@ namespace ProximityMine
       lobbyManager.OnMemberDisconnect += OnMemberDisconnect;
       lobbyManager.OnLobbyMessage += OnLobbyMessage;
       lobbyManager.OnNetworkMessage += OnNetworkMessage;
-
-      UserConnected += OnUserConnect;
-      UserDisconnected += OnUserDisconnect;
     }
 
     public void Update()
@@ -237,7 +234,7 @@ namespace ProximityMine
       _currentUserId = currentUser.Id;
       _discord.GetVoiceManager().SetSelfMute(false);
 
-      UserConnected?.Invoke(_currentUserId);
+      OnUserConnect(_currentUserId);
 
       // Create a lobby for our local game
       var lobbyManager = _discord.GetLobbyManager();
@@ -293,7 +290,7 @@ namespace ProximityMine
             LogStringInfo($"Sending player ID message to {user.Id}");
             lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(_playerGameId));
 
-            UserConnected?.Invoke(user.Id);
+            OnUserConnect(user.Id);
           }
         }
       });
@@ -302,7 +299,7 @@ namespace ProximityMine
     private void OnMemberConnect(long lobbyID, long userID)
     {
       LogStringInfo($"user {userID} connected to lobby: {lobbyID}");
-      UserConnected?.Invoke(userID);
+      OnUserConnect(userID);
 
       var lobbyManager = _discord.GetLobbyManager();
       lobbyManager.SendNetworkMessage(lobbyID, userID, 0, Encoding.UTF8.GetBytes(_playerGameId));
@@ -311,7 +308,7 @@ namespace ProximityMine
     private void OnMemberDisconnect(long lobbyID, long userID)
     {
       LogStringInfo($"user {userID} disconnected to lobby: {lobbyID}");
-      UserDisconnected?.Invoke(userID);
+      OnUserDisconnect(userID);
     }
 
     private void OnLobbyMessage(long lobbyID, long userID, byte[] data)
@@ -336,6 +333,8 @@ namespace ProximityMine
     {
       Player player = new Player(userId);
       _players.Add(player);
+
+      UserConnected?.Invoke(userId);
     }
 
     private void OnUserDisconnect(long userId)
@@ -345,6 +344,8 @@ namespace ProximityMine
       {
         _players.Remove(player);
       }
+
+      UserDisconnected?.Invoke(userId);
     }
   }
 }
