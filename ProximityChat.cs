@@ -47,10 +47,7 @@ namespace ProximityMine
 
       // Create discord api instance and set up logging
       _discord = new Discord.Discord(kClientId, (UInt64)Discord.CreateFlags.Default);
-      _discord.SetLogHook(Discord.LogLevel.Info, (level, message) =>
-      {
-        LogStringInfo($"Discord: [{level}] {message}");
-      });
+      _discord.SetLogHook(Discord.LogLevel.Info, OnDiscordLog);
 
       // Get managers we need
       var userManager = _discord.GetUserManager();
@@ -112,10 +109,7 @@ namespace ProximityMine
         if (_currentLobbyId != 0)
         {
           var lobbyManager = _discord.GetLobbyManager();
-          lobbyManager.SendLobbyMessage(_currentLobbyId, Encoding.UTF8.GetBytes(_playerGameId), lobbyResult =>
-          {
-            LogStringInfo($"Sent lobby player game ID: {lobbyResult}");
-          });
+          lobbyManager.SendLobbyMessage(_currentLobbyId, Encoding.UTF8.GetBytes(_playerGameId), OnLobbySendMessageResult);
         }
       }
     }
@@ -178,17 +172,7 @@ namespace ProximityMine
 
       // Set this activity as our current one for the user
       // The activity + party info inside allows people to invite on discord
-      _discord.GetActivityManager().UpdateActivity(activity, (result) =>
-      {
-        if (result == Discord.Result.Ok)
-        {
-          LogStringInfo($"Set activity success, join secret: {activity.Secrets.Join}");
-        }
-        else
-        {
-          LogStringInfo("Activity Failed");
-        }
-      });
+      _discord.GetActivityManager().UpdateActivity(activity, OnActivityUpdateResult);
     }
 
     private void LogStringInfo(string logStr)
@@ -219,6 +203,73 @@ namespace ProximityMine
       return null;
     }
 
+    private void OnDiscordLog(Discord.LogLevel level, string message)
+    {
+      LogStringInfo($"Discord: [{level}] {message}");
+    }
+
+    private void OnLobbySendMessageResult(Discord.Result lobbyResult)
+    {
+      LogStringInfo($"Sent lobby player game ID: {lobbyResult}");
+    }
+
+    private void OnLobbyCreateResult(Discord.Result result, ref Discord.Lobby lobby)
+    {
+      UpdateActivity(lobby);
+
+      // Connect to the network of this lobby and send everyone a message
+      var lobbyManager = _discord.GetLobbyManager();
+      lobbyManager.ConnectNetwork(lobby.Id);
+      lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
+      lobbyManager.ConnectVoice(lobby.Id, OnVoiceConnectResult);
+    }
+
+    private void OnConnectLobbyResult(Discord.Result result, ref Discord.Lobby lobby)
+    {
+      _isJoiningLobby = false;
+      LogStringInfo($"Connected to lobby: {lobby.Id}");
+
+      UpdateActivity(lobby);
+
+      // Connect to the network of this lobby and send everyone a message
+      var lobbyManager = _discord.GetLobbyManager();
+      lobbyManager.ConnectNetwork(lobby.Id);
+      lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
+      lobbyManager.ConnectVoice(lobby.Id, OnVoiceConnectResult);
+
+      var userManager = _discord.GetUserManager();
+      var localUser = userManager.GetCurrentUser();
+      foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
+      {
+        if (user.Id != localUser.Id)
+        {
+          OnUserConnect(user.Id);
+        }
+      }
+
+      if (_playerGameId != null)
+      {
+        lobbyManager.SendLobbyMessage(_currentLobbyId, Encoding.UTF8.GetBytes(_playerGameId), OnLobbySendMessageResult);
+      }
+    }
+
+    private void OnActivityUpdateResult(Discord.Result result)
+    {
+      if (result == Discord.Result.Ok)
+      {
+        LogStringInfo($"Set activity success");
+      }
+      else
+      {
+        LogStringInfo("Activity Failed");
+      }
+    }
+
+    private void OnVoiceConnectResult(Discord.Result voiceResult)
+    {
+      LogStringInfo($"Connect to voice: {voiceResult}");
+    }
+
     // Handle current user changing, can't get current user until this fires once
     private void OnCurrentUserUpdate()
     {
@@ -243,18 +294,7 @@ namespace ProximityMine
       lobbyTxn.SetCapacity(_lobbyCapacity);
       lobbyTxn.SetType(Discord.LobbyType.Private);
 
-      lobbyManager.CreateLobby(lobbyTxn, (Discord.Result result, ref Discord.Lobby lobby) =>
-      {
-        UpdateActivity(lobby);
-
-        // Connect to the network of this lobby and send everyone a message
-        lobbyManager.ConnectNetwork(lobby.Id);
-        lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
-        lobbyManager.ConnectVoice(lobby.Id, voiceResult =>
-        {
-          LogStringInfo($"Connect to voice: {voiceResult}");
-        });
-      });
+      lobbyManager.CreateLobby(lobbyTxn, OnLobbyCreateResult);
     }
 
     private void OnActivityJoin(string secret)
@@ -267,39 +307,7 @@ namespace ProximityMine
       // When we join an activity, try to connect to the relevant lobby
       _isJoiningLobby = true;
       var lobbyManager = _discord.GetLobbyManager();
-      lobbyManager.ConnectLobbyWithActivitySecret(secret, (Discord.Result result, ref Discord.Lobby lobby) =>
-      {
-        _isJoiningLobby = false;
-        LogStringInfo($"Connected to lobby: {lobby.Id}");
-
-        UpdateActivity(lobby);
-
-        // Connect to the network of this lobby and send everyone a message
-        lobbyManager.ConnectNetwork(lobby.Id);
-        lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
-        lobbyManager.ConnectVoice(lobby.Id, voiceResult =>
-        {
-          LogStringInfo($"Connect to voice: {voiceResult}");
-        });
-
-        var userManager = _discord.GetUserManager();
-        var localUser = userManager.GetCurrentUser();
-        foreach (var user in lobbyManager.GetMemberUsers(lobby.Id))
-        {
-          if (user.Id != localUser.Id)
-          {
-            OnUserConnect(user.Id);
-          }
-        }
-
-        if (_playerGameId != null)
-        {
-          lobbyManager.SendLobbyMessage(_currentLobbyId, Encoding.UTF8.GetBytes(_playerGameId), lobbyResult =>
-          {
-            LogStringInfo($"Sent lobby player game ID: {lobbyResult}");
-          });
-        }
-      });
+      lobbyManager.ConnectLobbyWithActivitySecret(secret, OnConnectLobbyResult);
     }
 
     private void OnMemberConnect(long lobbyID, long userID)
