@@ -21,6 +21,7 @@ namespace proximity_mine
   {
     private List<Player> _players = new List<Player>();
     private ProximityMine.ProximityChat _proximityChat;
+    private int _nextPlayerId = 100;
 
     public void Initialize()
     {
@@ -54,18 +55,19 @@ namespace proximity_mine
 
           if (_players.Count > 1)
           {
-            Player ownerPlayer = GetPlayer(_proximityChat.OwnerId);
+            string ownerPlayerId = _proximityChat.GetPlayerGameId(_proximityChat.LobbyOwnerId);
+            Player ownerPlayer = GetPlayer(ownerPlayerId);
             if (ownerPlayer != null)
             {
               elapsedTime += dt;
               ownerPlayer.X = MathF.Sin(elapsedTime) * 10;
-              _proximityChat.SetPlayerPosition(ownerPlayer.Id, ownerPlayer.X, ownerPlayer.Y, 0);
+              _proximityChat.SetPlayerPosition(_proximityChat.LobbyOwnerId, ownerPlayer.X, ownerPlayer.Y, 0);
 
               Console.WriteLine($"Owner player pos.x = {ownerPlayer.X}");
             }
             else
             {
-              Console.WriteLine($"Failed to find owner player with id {_proximityChat.OwnerId}");
+              Console.WriteLine($"Failed to find owner player with id {_proximityChat.LobbyOwnerId}");
             }
           }
 
@@ -81,26 +83,33 @@ namespace proximity_mine
 
     private void OnUserConnected(long userId)
     {
+      Console.WriteLine($"Player connected: {userId}");
+
       Player player = new Player();
-      player.Id = userId;
+      player.Id = _nextPlayerId.ToString();
+      _nextPlayerId += 1;
 
       _players.Add(player);
 
-      Console.WriteLine($"Player connected: {userId}");
+      if (userId == _proximityChat.UserId)
+      {
+        _proximityChat.SetPlayerGameId(player.Id);
+      }
     }
 
     private void OnUserDisconnected(long userId)
     {
-      Player player = GetPlayer(userId);
+      Console.WriteLine($"Player disconnected: {userId}");
+
+      string playerId = _proximityChat.GetPlayerGameId(userId);
+      Player player = GetPlayer(playerId);
       if (player != null)
       {
         _players.Remove(player);
       }
-
-      Console.WriteLine($"Player disconnected: {userId}");
     }
 
-    private Player GetPlayer(long playerId)
+    private Player GetPlayer(string playerId)
     {
       for (int i = 0; i < _players.Count; ++i)
       {
@@ -116,6 +125,6 @@ namespace proximity_mine
   {
     public float X = 0;
     public float Y = 0;
-    public long Id = 0;
+    public string Id = string.Empty;
   }
 }

@@ -12,7 +12,8 @@ namespace ProximityMine
     public event System.Action<long> UserConnected;
     public event System.Action<long> UserDisconnected;
 
-    public long OwnerId => _currentLobbyOwnerId;
+    public long LobbyOwnerId => _currentLobbyOwnerId;
+    public long UserId => _currentUserId;
 
     private static readonly long kClientId = 926574841237209158;
 
@@ -22,22 +23,21 @@ namespace ProximityMine
     private long _currentLobbyOwnerId = 0;
     private bool _isJoiningLobby = false;
     private uint _lobbyCapacity = 4;
+    private string _playerGameId = string.Empty;
     private Discord.Discord _discord;
-    private Stopwatch _frameTimer = new Stopwatch();
-    private System.Timers.Timer _timer = new System.Timers.Timer();
     private List<Player> _players = new List<Player>();
-
 
     private class Player
     {
       public float X = 0;
       public float Y = 0;
       public float Z = 0;
-      public long Id = 0;
+      public long DiscordId = 0;
+      public string GameId = string.Empty;
 
       public Player(long id)
       {
-        Id = id;
+        DiscordId = id;
       }
     }
 
@@ -71,10 +71,7 @@ namespace ProximityMine
 
     public void Update()
     {
-      // float dt = _frameTimer.ElapsedTicks / (float)TimeSpan.TicksPerSecond;
-      // _frameTimer.Restart();
-
-      Player localPlayer = GetPlayer(OwnerId);
+      Player localPlayer = GetPlayer(LobbyOwnerId);
       if (localPlayer != null)
       {
         var voiceManager = _discord.GetVoiceManager();
@@ -89,7 +86,7 @@ namespace ProximityMine
           float distToPlayer = MathF.Sqrt(xDelta * xDelta + yDelta * yDelta + zDelta * zDelta);
           float volume = 1.0f - (distToPlayer / 10.0f);
 
-          voiceManager.SetLocalVolume(remotePlayer.Id, (byte)(volume * 200));
+          voiceManager.SetLocalVolume(remotePlayer.DiscordId, (byte)(volume * 200));
         }
       }
 
@@ -105,6 +102,36 @@ namespace ProximityMine
         var updateTxn = _discord.GetLobbyManager().GetLobbyUpdateTransaction(_currentLobbyId);
         updateTxn.SetCapacity(_lobbyCapacity);
       }
+    }
+
+    public void SetPlayerGameId(string playerGameId)
+    {
+      LogStringInfo($"Set local player game Id: {playerGameId}");
+
+      if (_playerGameId != playerGameId)
+      {
+        _playerGameId = playerGameId;
+        if (_currentLobbyId != 0)
+        {
+          var lobbyManager = _discord.GetLobbyManager();
+          lobbyManager.SendLobbyMessage(_currentLobbyId, Encoding.UTF8.GetBytes(_playerGameId), lobbyResult =>
+          {
+            LogStringInfo($"Sent lobby player game ID: {lobbyResult}");
+          });
+        }
+      }
+    }
+
+    public string GetPlayerGameId(long playerDiscordId)
+    {
+      Player player = GetPlayer(playerDiscordId);
+      return player.GameId;
+    }
+
+    public long GetPlayerDiscordId(string playerGameId)
+    {
+      Player player = GetPlayer(playerGameId);
+      return player.DiscordId;
     }
 
     public void SetPlayerPosition(long playerId, float x, float y, float z)
@@ -170,6 +197,28 @@ namespace ProximityMine
     {
       Console.WriteLine(logStr);
       LogInfo?.Invoke(logStr);
+    }
+
+    private Player GetPlayer(long playerDiscordId)
+    {
+      for (int i = 0; i < _players.Count; ++i)
+      {
+        if (_players[i].DiscordId == playerDiscordId)
+          return _players[i];
+      }
+
+      return null;
+    }
+
+    private Player GetPlayer(string playerGameId)
+    {
+      for (int i = 0; i < _players.Count; ++i)
+      {
+        if (_players[i].GameId == playerGameId)
+          return _players[i];
+      }
+
+      return null;
     }
 
     // Handle current user changing, can't get current user until this fires once
@@ -241,17 +290,12 @@ namespace ProximityMine
         {
           if (user.Id != localUser.Id)
           {
-            LogStringInfo($"Sending network message to {user.Id}");
-            lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(String.Format("Hello, {0}!", user.Username)));
+            LogStringInfo($"Sending player ID message to {user.Id}");
+            lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(_playerGameId));
 
             UserConnected?.Invoke(user.Id);
           }
         }
-
-        lobbyManager.SendLobbyMessage(lobby.Id, Encoding.UTF8.GetBytes($"Hello Lobby!"), lobbyResult =>
-        {
-          LogStringInfo($"Send lobby message result: {lobbyResult}");
-        });
       });
     }
 
@@ -259,6 +303,9 @@ namespace ProximityMine
     {
       LogStringInfo($"user {userID} connected to lobby: {lobbyID}");
       UserConnected?.Invoke(userID);
+
+      var lobbyManager = _discord.GetLobbyManager();
+      lobbyManager.SendNetworkMessage(lobbyID, userID, 0, Encoding.UTF8.GetBytes(_playerGameId));
     }
 
     private void OnMemberDisconnect(long lobbyID, long userID)
@@ -269,12 +316,20 @@ namespace ProximityMine
 
     private void OnLobbyMessage(long lobbyID, long userID, byte[] data)
     {
-      LogStringInfo($"lobby message: {userID} {Encoding.UTF8.GetString(data)}");
+      string playerGameId = Encoding.UTF8.GetString(data);
+      LogStringInfo($"got player game id: {userID} {playerGameId}");
+
+      Player player = GetPlayer(userID);
+      player.GameId = playerGameId;
     }
 
     private void OnNetworkMessage(long lobbyID, long userID, byte channelID, byte[] data)
     {
-      LogStringInfo($"channel message: {lobbyID} {channelID} {Encoding.UTF8.GetString(data)}");
+      string playerGameId = Encoding.UTF8.GetString(data);
+      LogStringInfo($"got player game id: {userID} {playerGameId}");
+
+      Player player = GetPlayer(userID);
+      player.GameId = playerGameId;
     }
 
     private void OnUserConnect(long userId)
@@ -290,17 +345,6 @@ namespace ProximityMine
       {
         _players.Remove(player);
       }
-    }
-
-    private Player GetPlayer(long playerId)
-    {
-      for (int i = 0; i < _players.Count; ++i)
-      {
-        if (_players[i].Id == playerId)
-          return _players[i];
-      }
-
-      return null;
     }
   }
 }
