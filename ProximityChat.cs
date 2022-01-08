@@ -23,7 +23,7 @@ namespace ProximityMine
     private long _currentLobbyOwnerId = 0;
     private bool _isJoiningLobby = false;
     private uint _lobbyCapacity = 4;
-    private string _playerGameId = string.Empty;
+    private string _playerGameId = null;
     private Discord.Discord _discord;
     private List<Player> _players = new List<Player>();
 
@@ -287,11 +287,16 @@ namespace ProximityMine
         {
           if (user.Id != localUser.Id)
           {
-            LogStringInfo($"Sending player ID message to {user.Id}");
-            lobbyManager.SendNetworkMessage(lobby.Id, user.Id, 0, Encoding.UTF8.GetBytes(_playerGameId));
-
             OnUserConnect(user.Id);
           }
+        }
+
+        if (_playerGameId != null)
+        {
+          lobbyManager.SendLobbyMessage(_currentLobbyId, Encoding.UTF8.GetBytes(_playerGameId), lobbyResult =>
+          {
+            LogStringInfo($"Sent lobby player game ID: {lobbyResult}");
+          });
         }
       });
     }
@@ -314,7 +319,7 @@ namespace ProximityMine
     private void OnLobbyMessage(long lobbyID, long userID, byte[] data)
     {
       string playerGameId = Encoding.UTF8.GetString(data);
-      LogStringInfo($"got player game id: {userID} {playerGameId}");
+      LogStringInfo($"got lobby player game id: {userID} {playerGameId}");
 
       Player player = GetPlayer(userID);
       player.GameId = playerGameId;
@@ -323,7 +328,7 @@ namespace ProximityMine
     private void OnNetworkMessage(long lobbyID, long userID, byte channelID, byte[] data)
     {
       string playerGameId = Encoding.UTF8.GetString(data);
-      LogStringInfo($"got player game id: {userID} {playerGameId}");
+      LogStringInfo($"got network player game id: {userID} {playerGameId}");
 
       Player player = GetPlayer(userID);
       player.GameId = playerGameId;
