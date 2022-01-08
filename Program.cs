@@ -56,9 +56,9 @@ namespace proximity_mine
           if (_players.Count > 1)
           {
             string ownerPlayerId = _proximityChat.GetPlayerGameId(_proximityChat.LobbyOwnerId);
-            Player ownerPlayer = GetPlayer(ownerPlayerId);
-            if (ownerPlayer != null)
+            if (ownerPlayerId != null)
             {
+              Player ownerPlayer = GetPlayer(ownerPlayerId);
               elapsedTime += dt;
               ownerPlayer.X = MathF.Sin(elapsedTime) * 10;
               _proximityChat.SetPlayerPosition(_proximityChat.LobbyOwnerId, ownerPlayer.X, ownerPlayer.Y, 0);

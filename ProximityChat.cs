@@ -33,7 +33,7 @@ namespace ProximityMine
       public float Y = 0;
       public float Z = 0;
       public long DiscordId = 0;
-      public string GameId = string.Empty;
+      public string GameId = null;
 
       public Player(long id)
       {
