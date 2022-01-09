@@ -213,6 +213,8 @@ namespace ProximityMine
       LogStringInfo($"Sent lobby player game ID: {lobbyResult}");
     }
 
+    Discord.LobbyManager.CreateLobbyHandler _onLobbyCreateResult;
+
     private void OnLobbyCreateResult(Discord.Result result, ref Discord.Lobby lobby)
     {
       UpdateActivity(lobby);
@@ -294,7 +296,8 @@ namespace ProximityMine
       lobbyTxn.SetCapacity(_lobbyCapacity);
       lobbyTxn.SetType(Discord.LobbyType.Private);
 
-      lobbyManager.CreateLobby(lobbyTxn, OnLobbyCreateResult);
+      _onLobbyCreateResult = OnLobbyCreateResult;
+      lobbyManager.CreateLobby(lobbyTxn, _onLobbyCreateResult);
     }
 
     private void OnActivityJoin(string secret)
