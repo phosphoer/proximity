@@ -84,15 +84,14 @@ namespace proximity_mine
     {
       Console.WriteLine($"Player connected: {userId}");
 
-      Player player = new Player();
-      player.Id = userId.ToString();
-
-      _players.Add(player);
-
       if (userId == _proximityChat.UserId)
       {
-        _proximityChat.SetPlayerGameId(player.Id + "(game)");
+        _proximityChat.SetPlayerGameId(userId.ToString() + "(game)");
       }
+
+      Player player = new Player();
+      player.Id = _proximityChat.GetPlayerGameId(userId);
+      _players.Add(player);
     }
 
     private void OnUserDisconnected(long userId)
