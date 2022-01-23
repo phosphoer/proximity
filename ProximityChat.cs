@@ -338,7 +338,9 @@ namespace ProximityMine
       if (!string.IsNullOrEmpty(_playerGameId))
       {
         var lobbyManager = _discord.GetLobbyManager();
-        lobbyManager.SendNetworkMessage(lobbyID, userID, 0, Encoding.UTF8.GetBytes(_playerGameId));
+        // lobbyManager.SendNetworkMessage(lobbyID, userID, 0, Encoding.UTF8.GetBytes(_playerGameId));
+        lobbyManager.SendLobbyMessage(_currentLobbyId, Encoding.UTF8.GetBytes(_playerGameId), OnLobbySendMessageResult);
+        LogStringInfo($"Sending player game ID to lobby");
       }
     }
 
@@ -350,11 +352,14 @@ namespace ProximityMine
 
     private void OnLobbyMessage(long lobbyID, long userID, byte[] data)
     {
-      string playerGameId = Encoding.UTF8.GetString(data);
-      LogStringInfo($"Got lobby player game id: {userID} {playerGameId}");
+      if (userID != _currentUserId)
+      {
+        string playerGameId = Encoding.UTF8.GetString(data);
+        LogStringInfo($"Got lobby player game id: {userID} {playerGameId}");
 
-      Player player = GetPlayer(userID);
-      player.GameId = playerGameId;
+        Player player = GetPlayer(userID);
+        player.GameId = playerGameId;
+      }
     }
 
     private void OnNetworkMessage(long lobbyID, long userID, byte channelID, byte[] data)
