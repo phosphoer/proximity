@@ -91,7 +91,7 @@ namespace proximity_mine
 
       if (userId == _proximityChat.UserId)
       {
-        _proximityChat.SetPlayerGameId(player.Id);
+        _proximityChat.SetPlayerGameId(player.Id + "(game)");
       }
     }
 
