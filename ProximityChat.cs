@@ -16,14 +16,27 @@ namespace ProximityMine
     public long UserId => _currentUserId;
     public int UserCount => _players.Count;
 
+    public float VoiceMinDistance
+    {
+      get => _voiceMinDistance;
+      set => _voiceMinDistance = value;
+    }
+
+    public float VoiceMaxDistance
+    {
+      get => _voiceMaxDistance;
+      set => _voiceMaxDistance = value;
+    }
+
     private static readonly long kClientId = 926574841237209158;
 
-    private bool _userInitialized = false;
     private long _currentUserId = 0;
     private long _currentLobbyId = 0;
     private long _currentLobbyOwnerId = 0;
     private bool _isJoiningLobby = false;
     private uint _lobbyCapacity = 4;
+    private float _voiceMinDistance = 1;
+    private float _voiceMaxDistance = 10;
     private string _playerGameId = null;
     private Discord.Discord _discord;
     private List<Player> _players = new List<Player>();
@@ -66,12 +79,13 @@ namespace ProximityMine
 
     public void Update()
     {
-      Player localPlayer = GetPlayer(LobbyOwnerId);
-      if (localPlayer != null)
+      if (_players.Count > 0)
       {
+        // Local player is always player 0
+        Player localPlayer = _players[0];
         var voiceManager = _discord.GetVoiceManager();
 
-        // Local player is always player 0
+        // Calculate distance to every other player
         for (int i = 1; i < _players.Count; ++i)
         {
           Player remotePlayer = _players[i];
@@ -79,7 +93,8 @@ namespace ProximityMine
           float yDelta = (remotePlayer.Y - localPlayer.Y);
           float zDelta = (remotePlayer.Z - localPlayer.Z);
           float distToPlayer = (float)Math.Sqrt(xDelta * xDelta + yDelta * yDelta + zDelta * zDelta);
-          float volume = 1.0f - (distToPlayer / 10.0f);
+          float distScalar = (distToPlayer - _voiceMinDistance) / (_voiceMaxDistance - _voiceMinDistance);
+          float volume = 1.0f - Math.Clamp(distScalar, 0f, 1f);
 
           voiceManager.SetLocalVolume(remotePlayer.DiscordId, (byte)(volume * 200));
         }
@@ -305,8 +320,6 @@ namespace ProximityMine
       if (_currentUserId != 0)
         UserDisconnected?.Invoke(_currentUserId);
 
-      _userInitialized = true;
-
       var currentUser = _discord.GetUserManager().GetCurrentUser();
       LogStringInfo($"Current user updated: {currentUser.Username} {currentUser.Id}");
 
@@ -338,7 +351,6 @@ namespace ProximityMine
       if (!string.IsNullOrEmpty(_playerGameId))
       {
         var lobbyManager = _discord.GetLobbyManager();
-        // lobbyManager.SendNetworkMessage(lobbyID, userID, 0, Encoding.UTF8.GetBytes(_playerGameId));
         lobbyManager.SendLobbyMessage(_currentLobbyId, Encoding.UTF8.GetBytes(_playerGameId), OnLobbySendMessageResult);
         LogStringInfo($"Sending player game ID to lobby");
       }
