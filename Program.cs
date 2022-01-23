@@ -21,10 +21,12 @@ namespace proximity_mine
   {
     private List<Player> _players = new List<Player>();
     private ProximityMine.ProximityChat _proximityChat;
-    private int _nextPlayerId = 100;
+    private string _playerId;
 
     public void Initialize()
     {
+      _playerId = System.Guid.NewGuid().ToString();
+
       _proximityChat = new ProximityMine.ProximityChat();
       _proximityChat.Initialize();
 
@@ -86,8 +88,7 @@ namespace proximity_mine
       Console.WriteLine($"Player connected: {userId}");
 
       Player player = new Player();
-      player.Id = _nextPlayerId.ToString();
-      _nextPlayerId += 1;
+      player.Id = userId.ToString();
 
       _players.Add(player);
 

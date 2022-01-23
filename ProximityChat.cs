@@ -14,6 +14,7 @@ namespace ProximityMine
 
     public long LobbyOwnerId => _currentLobbyOwnerId;
     public long UserId => _currentUserId;
+    public int UserCount => _players.Count;
 
     private static readonly long kClientId = 926574841237209158;
 
@@ -102,7 +103,11 @@ namespace ProximityMine
     {
       LogStringInfo($"Set local player game Id: {playerGameId}");
 
-      if (_playerGameId != playerGameId)
+      if (_players.Count == 0)
+      {
+        _playerGameId = playerGameId;
+      }
+      else if (_playerGameId != playerGameId)
       {
         GetPlayer(_currentUserId).GameId = playerGameId;
         _playerGameId = playerGameId;
@@ -124,6 +129,11 @@ namespace ProximityMine
     {
       Player player = GetPlayer(playerGameId);
       return player.DiscordId;
+    }
+
+    public long GetPlayerDiscordId(int userIndex)
+    {
+      return _players[userIndex].DiscordId;
     }
 
     public void SetPlayerPosition(long playerId, float x, float y, float z)
@@ -213,14 +223,25 @@ namespace ProximityMine
       LogStringInfo($"Sent lobby player game ID: {lobbyResult}");
     }
 
-    Discord.LobbyManager.CreateLobbyHandler _onLobbyCreateResult;
-
     private void OnLobbyCreateResult(Discord.Result result, ref Discord.Lobby lobby)
     {
+      LogStringInfo($"Lobby Create Result: {result}");
+
+      var lobbyManager = _discord.GetLobbyManager();
+      if (result != Discord.Result.Ok)
+      {
+        // Create a lobby for our local game
+        var lobbyTxn = lobbyManager.GetLobbyCreateTransaction();
+        lobbyTxn.SetCapacity(_lobbyCapacity);
+        lobbyTxn.SetType(Discord.LobbyType.Private);
+
+        lobbyManager.CreateLobby(lobbyTxn, OnLobbyCreateResult);
+        return;
+      }
+
       UpdateActivity(lobby);
 
       // Connect to the network of this lobby and send everyone a message
-      var lobbyManager = _discord.GetLobbyManager();
       lobbyManager.ConnectNetwork(lobby.Id);
       lobbyManager.OpenNetworkChannel(lobby.Id, 0, true);
       lobbyManager.ConnectVoice(lobby.Id, OnVoiceConnectResult);
@@ -251,6 +272,7 @@ namespace ProximityMine
 
       if (_playerGameId != null)
       {
+        LogStringInfo($"Sending player game ID to lobby");
         lobbyManager.SendLobbyMessage(_currentLobbyId, Encoding.UTF8.GetBytes(_playerGameId), OnLobbySendMessageResult);
       }
     }
@@ -296,8 +318,7 @@ namespace ProximityMine
       lobbyTxn.SetCapacity(_lobbyCapacity);
       lobbyTxn.SetType(Discord.LobbyType.Private);
 
-      _onLobbyCreateResult = OnLobbyCreateResult;
-      lobbyManager.CreateLobby(lobbyTxn, _onLobbyCreateResult);
+      lobbyManager.CreateLobby(lobbyTxn, OnLobbyCreateResult);
     }
 
     private void OnActivityJoin(string secret)
@@ -318,8 +339,11 @@ namespace ProximityMine
       LogStringInfo($"user {userID} connected to lobby: {lobbyID}");
       OnUserConnect(userID);
 
-      var lobbyManager = _discord.GetLobbyManager();
-      lobbyManager.SendNetworkMessage(lobbyID, userID, 0, Encoding.UTF8.GetBytes(_playerGameId));
+      if (!string.IsNullOrEmpty(_playerGameId))
+      {
+        var lobbyManager = _discord.GetLobbyManager();
+        lobbyManager.SendNetworkMessage(lobbyID, userID, 0, Encoding.UTF8.GetBytes(_playerGameId));
+      }
     }
 
     private void OnMemberDisconnect(long lobbyID, long userID)
@@ -350,6 +374,9 @@ namespace ProximityMine
     {
       Player player = new Player(userId);
       _players.Add(player);
+
+      if (userId == _currentUserId)
+        player.GameId = _playerGameId;
 
       UserConnected?.Invoke(userId);
     }
