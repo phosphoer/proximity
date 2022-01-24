@@ -32,6 +32,7 @@ namespace proximity_mine
 
     private List<Player> _players = new List<Player>();
     private ProximityMine.ProximityChat _proximityChat;
+    private float _elapsedTime;
 
     public void Initialize()
     {
@@ -60,7 +61,7 @@ namespace proximity_mine
       try
       {
         // Set up some timing info
-        float elapsedTime = 0;
+        _elapsedTime = 0;
         Stopwatch timer = new Stopwatch();
         timer.Start();
 
@@ -70,7 +71,7 @@ namespace proximity_mine
           float dt = (float)TimeSpan.FromMilliseconds(timer.ElapsedMilliseconds).TotalSeconds;
           timer.Restart();
 
-          MoveHostPlayerLeftRight(dt, elapsedTime);
+          MoveHostPlayerLeftRight(dt);
 
           // We must tell proximity chat where each player is locally in order for positional
           // audio to work, proximity chat does not network the position data
@@ -170,7 +171,7 @@ namespace proximity_mine
     // Some made up 'gameplay' code that moves the host player back and forth in and out of audio range
     // Note this movement is being done locally on all clients since this sample is too simple
     // to include an actual networked game
-    private void MoveHostPlayerLeftRight(float dt, float elapsedTime)
+    private void MoveHostPlayerLeftRight(float dt)
     {
       if (_players.Count > 1)
       {
@@ -178,8 +179,8 @@ namespace proximity_mine
         if (ownerPlayerId != null)
         {
           Player ownerPlayer = GetPlayer(ownerPlayerId);
-          elapsedTime += dt;
-          ownerPlayer.X = MathF.Sin(elapsedTime) * _proximityChat.VoiceMaxDistance;
+          _elapsedTime += dt;
+          ownerPlayer.X = MathF.Sin(_elapsedTime) * _proximityChat.VoiceMaxDistance;
 
           Console.WriteLine($"Owner player pos.x = {ownerPlayer.X}");
         }
