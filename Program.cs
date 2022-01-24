@@ -29,6 +29,7 @@ namespace proximity_mine
 
       _proximityChat.UserConnected += OnUserConnected;
       _proximityChat.UserDisconnected += OnUserDisconnected;
+      _proximityChat.UserGameIdUpdated += OnUserGameIdReceived;
     }
 
     public void Uninitialize()
@@ -86,11 +87,21 @@ namespace proximity_mine
 
       if (userId == _proximityChat.UserId)
       {
-        _proximityChat.SetPlayerGameId(userId.ToString() + "(game)");
+        string gameId = Guid.NewGuid().ToString();
+        _proximityChat.SetPlayerGameId(gameId);
+
+        Player localPlayer = new Player();
+        localPlayer.Id = gameId;
+        _players.Add(localPlayer);
       }
+    }
+
+    private void OnUserGameIdReceived(long userId, string gameId)
+    {
+      Console.WriteLine($"Player game ID received: {userId}:{gameId}");
 
       Player player = new Player();
-      player.Id = _proximityChat.GetPlayerGameId(userId);
+      player.Id = gameId;
       _players.Add(player);
     }
 

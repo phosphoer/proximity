@@ -11,6 +11,7 @@ namespace ProximityMine
 
     public event System.Action<long> UserConnected;
     public event System.Action<long> UserDisconnected;
+    public event System.Action<long, string> UserGameIdUpdated;
 
     public long LobbyOwnerId => _currentLobbyOwnerId;
     public long UserId => _currentUserId;
@@ -371,6 +372,7 @@ namespace ProximityMine
 
         Player player = GetPlayer(userID);
         player.GameId = playerGameId;
+        UserGameIdUpdated?.Invoke(userID, playerGameId);
       }
     }
 
@@ -381,6 +383,7 @@ namespace ProximityMine
 
       Player player = GetPlayer(userID);
       player.GameId = playerGameId;
+      UserGameIdUpdated?.Invoke(userID, playerGameId);
     }
 
     private void OnUserConnect(long userId)
@@ -396,13 +399,13 @@ namespace ProximityMine
 
     private void OnUserDisconnect(long userId)
     {
+      UserDisconnected?.Invoke(userId);
+
       Player player = GetPlayer(userId);
       if (player != null)
       {
         _players.Remove(player);
       }
-
-      UserDisconnected?.Invoke(userId);
     }
   }
 }
